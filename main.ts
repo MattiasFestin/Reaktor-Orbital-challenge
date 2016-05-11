@@ -1,3 +1,5 @@
+var epsilon = 0.01;
+
 //[TODO] - Inline and unrole optimize for 3d case.
 class Vec3 {
     private value: Float32Array;
@@ -129,7 +131,15 @@ class Sphere {
     }
     
     public pointOnSphere (p: Vec3) {
-        return Math.abs(p.distance(this.o) - this.r) < 0.01;
+        return Math.abs(p.distance(this.o) - this.r) < epsilon;
+    }
+    
+    public normal (p: Vec3) {
+        return new Vec3([
+            (p.getX() - this.o.getX()) / this.r,
+            (p.getY() - this.o.getY()) / this.r,
+            (p.getZ() - this.o.getZ()) / this.r
+        ]);
     }
     
     public intersect (l: Line) {
@@ -189,13 +199,11 @@ class RountingPointPairs {
     public source: RouteingPoint;
     public target: RouteingPoint;
     public distance: number;
-    public visited: boolean;
     
     constructor (source: RouteingPoint, target: RouteingPoint) {
         this.source = source;
         this.target = target;
         this.distance = this.source.position.distance(this.target.position);
-        this.visited = false;
     }
 }
 
@@ -211,121 +219,234 @@ class RouteingPoint {
         this.position = polarCoord.convert();
     }
 }
-
+interface IAnswer {
+    distance: number,
+    path: string[],
+    pathPos: Vec3[]
+}
 class Router {
     public routes: RouteingPoint[];
     public earth: Sphere;
     
     constructor (routes: RouteingPoint[]) {
         this.earth = new Sphere(new Vec3([0, 0, 0]), 6371);
+        
+        this.routes = routes;
+        // var len = this.routes.length;
+        
+        // var i = len;
+        // while (i--) {
+        //     //The row element
+        //     var r = this.routes[i];
+        //     r.availiableRoutingPoints = r.availiableRoutingPoints || [];
+            
+        //     var j = i;
+        //     while (j--) {
+        //         //The column element
+        //         var c = this.routes[j];
+        //         c.availiableRoutingPoints = c.availiableRoutingPoints || [];
+                
+        //         //The distance is symetrical when routing.
+        //         var distance = (r !== c && this.earth.intersect(new Line(r.position, c.position)).length === 0 ?
+        //             Infinity :
+        //             r.position.distance(c.position)
+        //         );
+                
+        //         //Check if inte
+        //         if (distance < Infinity) {
+        //             r.availiableRoutingPoints.push(new RountingPointPairs(r, c));
+        //             c.availiableRoutingPoints.push(new RountingPointPairs(c, r));
+        //         } 
+        //     }
+        // }       
         this.routes = routes
             .map(s => {
-                s.availiableRoutingPoints = routes
-                    .filter(q => {
-                        debugger;
-                        return q !== s && 
-                            this.earth.intersect(new Line(s.position, q.position)).length === 0; //Is not self and does not intersect earth 
-                    })
-                    .map(x => new RountingPointPairs(s, x))
-                    //Order by distance
-                    .sort((a, b) => a.distance - b.distance);
+                s.availiableRoutingPoints = s.availiableRoutingPoints || [];
+                if (['start', 'end'].indexOf(s.name) === -1) {
+                    s.availiableRoutingPoints = s.availiableRoutingPoints.concat(
+                        routes
+                        .filter(q => {
+                            return q !== s && 
+                                ['start', 'end'].indexOf(q.name) === -1 &&
+                                this.earth.intersect(new Line(s.position, q.position)).length === 0; //Is not self and does not intersect earth 
+                        })
+                        .map(x => new RountingPointPairs(s, x))
+                        //Remove duplicates
+                        .filter(x => s.availiableRoutingPoints.indexOf(x) === -1)
+                        //Order by distance
+                        .sort((a, b) => a.distance - b.distance)
+                    );
+                } else {
+                    //Start and end points will intersect below (behind?) the point
+                    // We must check the surface normal the direction if it is infront of the point
+                    var surfaceNormal = this.earth.normal(s.position);
+                    
+                    s.availiableRoutingPoints = s.availiableRoutingPoints.concat(
+                        routes
+                        .filter(q => {
+                            var dot = q.position.sub(s.position).norm().dot(surfaceNormal);
+                            debugger;
+                            return q !== s && 
+                                dot > 0 
+                        })
+                        .map(x => new RountingPointPairs(s, x))
+                        //Remove duplicates
+                        .filter(x => s.availiableRoutingPoints.indexOf(x) === -1)
+                        //Order by distance
+                        .sort((a, b) => a.distance - b.distance)
+                    );
+
+                    //We want symetric relations
+                    s.availiableRoutingPoints.forEach(q => {
+                        q.target.availiableRoutingPoints = q.target.availiableRoutingPoints || [];
+                        if (q.target.availiableRoutingPoints.every(r => r.target !== q.source)) {
+                            q.target.availiableRoutingPoints.push(new RountingPointPairs(q.target, q.source));
+                        }
+                    });   
+                }
+                //  else {
+                //     var surfaceNormal = this.earth.normal(s.position);
+                    
+                //     s.availiableRoutingPoints = s.availiableRoutingPoints.concat(
+                //         routes
+                //         .filter(q => {
+                //             var dot = s.position.sub(q.position).norm().dot(surfaceNormal);
+                //             debugger;
+                //             return q !== s && 
+                //                 dot > 0 
+                //         })
+                //         .map(x => new RountingPointPairs(s, x))
+                //         //Remove duplicates
+                //         .filter(x => s.availiableRoutingPoints.indexOf(x) === -1)
+                //         //Order by distance
+                //         .sort((a, b) => a.distance - b.distance)
+                //     );
+
+                //     //We want symetric relations
+                //     s.availiableRoutingPoints.forEach(q => {
+                //         q.target.availiableRoutingPoints = q.target.availiableRoutingPoints || [];
+                //         if (q.target.availiableRoutingPoints.every(r => r.target !== q.source)) {
+                //             q.target.availiableRoutingPoints.push(new RountingPointPairs(q.target, q.source));
+                //         }
+                //     });
+                // }
                 
                 return s; 
             });
     }
     
-    public route (start: RouteingPoint, end: RouteingPoint) {
-        interface IAnswer {
-            distance: number,
-            path: string[]
-        }
-        var recursiveDecent = (node: RouteingPoint, finish: RouteingPoint, distance: number, path: string[], /*visited: RouteingPoint[],*/ deepth = 0): IAnswer => {
-            console.log('Walking: ', deepth, path, distance);
-            debugger;
-            if (node.availiableRoutingPoints.length === 0 || deepth > 21) {
-                return {
-                    distance: Infinity,
-                    path: ['NO_SOLUTION']
-                };
-            } else if (node.availiableRoutingPoints.map(x => x.target).indexOf(finish) > -1) {
-                return {
-                    distance,
-                    path
-                };
-            } else {
-                var paths = node.availiableRoutingPoints
-                    //Prevent backtracking
-                    // .filter(n => visited.indexOf(n.source) === -1)
-                    //Recursive decent down child nodes
-                    .map(n => recursiveDecent(
-                        n.target,
-                        finish,
-                        distance + n.distance,
-                        path.concat([',' + n.source.name]),
-                        // visited.concat([n.source]),
-                        deepth + 1)
-                    )
-                    //We only want solutions
-                    .filter(n => n && n.distance !== Infinity);
-                var best = paths.sort((a, b) => a.distance - b.distance)[0];
-                return best;
-            }
-        };
+    public route (start: RouteingPoint, end: RouteingPoint): IAnswer {
+        var len = this.routes.length;
+
+        var path: string[] = [];
+        var pathPos: Vec3[] = [];
+        var distance = 0;
+        var distanceArr: number[] = [];
+        //Floyd–Warshall_algorithm
         
-        //Walk the tree
-        return {
-            startToEnd: recursiveDecent(start, end, 0, [])
-            // endToStart: recursiveDecent(end, start, 0, '', [])
-        };
+        //Preset all distances to infinity
+        var i = len;
+        while (i--) {
+            distanceArr[i] = Infinity;
+        } 
 
-        // //////////////////////////////////////////////////////
-        // //Perform Dijkstra's algorithm to find shortest path//
-        // //////////////////////////////////////////////////////
-        // var dist: number[] = [],
-        //     prev: RouteingPoint[] = [],
-        //     currentNode: RouteingPoint = start,
-        //     currentNodeIndex: number = 0;
-
-        // var routes = this.routes.slice();//[start].concat(this.routes.slice().concat([end]));
-
-        // var i = routes.length;
-        // while (i--) {
-        //     dist[i] = Infinity;
-        // }
-        
-        // //Distance from source to source
-        // dist[0] = 0;
-
-        // //Go through all routes
-        // while (routes.length > 0) {
-        //     //Find the best current solution
-        //     var minimum = this.minimum(dist);
-        //     currentNodeIndex = minimum.index;
-        //     currentNode = routes[currentNodeIndex];
-
-        //     //Remove current node from nodes to visit
-        //     routes.splice(currentNodeIndex, 1);
+        i = len;
+        while (i--) {
+            var u = this.routes[i]; 
+            // if (u == end) {
+            //     break;
+            // }
             
-        //     if (currentNode.availiableRoutingPoints.filter(x => x.target === end).length > 0) {
-        //         break;
-        //     }
-
-        //     //Check all availiable routeing options
-        //     currentNode.availiableRoutingPoints.forEach(rp => {           
-        //         var rpi = routes.indexOf(rp.target),
-        //             altRoute = dist[currentNodeIndex] + rp.distance;
-
-        //         //Do not route to previous node
-        //         if (altRoute < dist[rpi] && prev.indexOf(currentNode) === -1) {
-        //             //A better solution is found
-        //             dist[rpi] = altRoute;
-        //             prev[rpi] = currentNode;
-        //         }
-        //     });
+            console.group(u.name);
+            
+            for (var neighbor of u.availiableRoutingPoints) {
+                var neighborIndex = this.routes.indexOf(neighbor.target);
+                var alt = distanceArr[i] + neighbor.distance;
+                
+                console.log(neighbor);
+                
+                if (alt < distanceArr[neighborIndex]) {
+                    distance += alt;
+                    distanceArr[neighborIndex] = alt;
+                    path.push(u.name);
+                    pathPos.push(u.position)
+                }
+            }
+            
+            console.groupEnd();
+        }
+        
+        var answer = {
+            path: path,
+            pathPos: pathPos,
+            distance: distance
+        };
+        
+        console.log('answer:', answer);
+        
+        return answer;
+        
+        // //Check if some satelite has both start and end
+        // var onlyOneSatelite = start.availiableRoutingPoints.filter(x => {
+        //     return x.target.availiableRoutingPoints.some(y => y.target === end);
+        // }).sort((a, b) => a.distance - b.distance);
+        // if (onlyOneSatelite.length > 0) {
+        //     console.log('only one satelite needed');
+        //     return {
+        //         path: [start.name, onlyOneSatelite[0].target.name, end.name],
+        //         pathPos: [start.position, onlyOneSatelite[0].target.position, end.position],
+        //         distance: onlyOneSatelite[0].distance
+        //     };
         // }
         
-        // //Print solution
-        // return (prev.map(x => x.name).join(',') + ',end').replace(/[,]{2,}/, ',');
+        
+        // var recursiveDecent = (node: RouteingPoint, finish: RouteingPoint, answer: IAnswer, visited: RountingPointPairs[]  = []): IAnswer => {
+            
+        //     var availiableRoutingPoints = node.availiableRoutingPoints.filter(x => visited.indexOf(x) === -1);
+
+        //     if (availiableRoutingPoints.length === 0 || visited.length > 6) {
+        //         return {
+        //             distance: Infinity,
+        //             path: ['NO_SOLUTION'],
+        //             pathPos: []
+        //         };
+        //     } else if (availiableRoutingPoints.map(x => x.target).indexOf(finish) > -1) {
+        //         //[We are done]
+        //         return {
+        //             distance: answer.distance,
+        //             path: answer.path.concat([node.name, finish.name]),
+        //             pathPos: answer.pathPos.concat([node.position, finish.position])
+        //         };
+        //     } else {
+        //         var paths = availiableRoutingPoints
+        //             //Prevent backtracking
+        //             .filter(n => answer.path.indexOf(n.source.name) === -1)
+        //             //Recursive decent down child nodes
+        //             .map(n => recursiveDecent(
+        //                     n.target,
+        //                     finish,
+        //                     {
+        //                         distance: answer.distance + n.distance,
+        //                         path: answer.path.concat([n.source.name]),
+        //                         pathPos: answer.pathPos.concat([n.source.position])
+        //                     },
+        //                     visited.concat([n])
+        //                 )
+        //             )
+        //             //We only want solutions
+        //             .filter(n => n && n.distance !== Infinity);
+
+        //         var best = paths.sort((a, b) => a.distance - b.distance)[0];
+        //         return best;
+        //     }
+        // };
+        
+        // //Walk the tree
+        // return recursiveDecent(start, end, {
+        //     path: [],
+        //     pathPos: [],
+        //     distance: 0
+        // });
     }
     
     private minimum (arr: number[]) {
@@ -344,38 +465,11 @@ class Router {
             value: minValue
         };
     }
-    
-    // //[TODO] - Mutating operation yuck!
-    // public calculateSatelitesInSight(point: RouteingPoint, finish: boolean = false) {
-    //     var sphereNorm = new Vec3([
-    //         (point.position.getX() - this.earth.o.getX()) / this.earth.r,
-    //         (point.position.getY() - this.earth.o.getY()) / this.earth.r,
-    //         (point.position.getZ() - this.earth.o.getZ()) / this.earth.r
-    //     ]).norm(); //Is norm() nessesary?
-        
-    //     point.availiableRoutingPoints = this.routes
-    //         .filter(s => {
-    //             var dir = point.position.sub(s.position),
-    //                 projection = sphereNorm.dot(dir);
-                
-    //             //Check if satelite is infront of point
-    //             return projection > 0;
-    //         })
-    //         .map(x => new RountingPointPairs(point, x))
-    //         //Order by distance
-    //         .sort((a, b) => a.distance - b.distance);
-
-    //     if (finish) {
-    //         //Push finish point to availiable satelites
-    //         point.availiableRoutingPoints.forEach(s => {
-    //             s.target.availiableRoutingPoints.push(new RountingPointPairs(s.target, point));
-    //         })
-    //     }
-    // }
 }
 
 //Helper function to parse data
 var parse = function parseFn (text: string) {
+    var result;
     var rows = text
         .split(/[\r\n]+/);
     
@@ -388,9 +482,9 @@ var parse = function parseFn (text: string) {
         });
     var earthPoints = rows[rows.length-1].split(',');
     
-     //[NOTE] - Add one to earth radious for altidude, to prevent to tangent intersection with sphere
-    var start = new RouteingPoint('start', new PolarCoordinate(+earthPoints[1], +earthPoints[2], 6371 + 1));
-    var end = new RouteingPoint('end', new PolarCoordinate(+earthPoints[3], +earthPoints[4], 6371 + 1));
+    //[NOTE] - Add one to earth radious for altidude, to prevent to tangent intersection with sphere
+    var start = new RouteingPoint('start', new PolarCoordinate(+earthPoints[1], +earthPoints[2], 6371 + epsilon));
+    var end = new RouteingPoint('end', new PolarCoordinate(+earthPoints[3], +earthPoints[4], 6371 + epsilon));
     
     //Add start and end to routeingPoints
     routeingPoints.unshift(start);
@@ -398,64 +492,69 @@ var parse = function parseFn (text: string) {
     
     var router = new Router(routeingPoints);
 
-    debugger;
-   
     var answer = router.route(start, end);
     
-    return {
+    
+    var retVal =  {
         seed: rows[0],
-        routeingPoints,
-        start,
-        end,
+        routeingPoints: routeingPoints.map(x => {
+            return {
+                name: x.name,
+                position: x.position,
+                availiableRoutingPoints: x.availiableRoutingPoints.map(y => {
+                    return {
+                        name: y.target.name,
+                        position: y.target.position
+                    };
+                })
+            };
+        }),
+        start: {
+            name: start.name,
+            position: start.position
+        },
+        end: {
+            name: end.name,
+            position: end.position
+        },
         answer
     };
+    
+    console.log('result:', retVal);
+    
+    return retVal;
 };
 
-console.log(parse(`#SEED: 0.6406132066622376
-SAT0,-12.752978073576813,-38.459835664474866,476.11595241230634
-SAT1,9.137708140810702,146.724861469646,692.8839852848683
-SAT2,-87.91582130168631,20.118890658833152,652.6966055853943
-SAT3,-63.482122579774185,-97.02949930701918,372.5560959426753
-SAT4,-64.8749607523745,-129.81032045366118,376.2082797552578
-SAT5,-52.89621407958349,13.297045107830286,642.8950339513227
-SAT6,0.06320486725917362,-41.960809561478726,303.50665475978883
-SAT7,-2.45765257648236,-157.27289445525898,425.4054242496205
-SAT8,-74.48190988018436,-135.06024501334292,647.7949557660236
-SAT9,56.58569976989324,125.10421262046322,322.8917083572893
-SAT10,-10.13989581599732,-114.58997718948993,443.43125737972787
-SAT11,17.567958809905107,77.00163611907965,321.5846109304707
-SAT12,-50.42901279757053,-98.19389457677124,676.986824909667
-SAT13,-86.86558372808352,17.04040357346784,658.1841721192698
-SAT14,-8.728362869656593,123.65442836770808,359.6143859833128
-SAT15,-27.08120203571915,70.63272824697782,545.4746389023945
-SAT16,85.73378039587072,-107.1802830673495,557.7640590883564
-SAT17,3.8144139889046897,100.12277805642088,466.47259197759024
-SAT18,24.240449600987944,48.95267766906616,498.06060346346476
-SAT19,41.283418855611416,91.59438506862313,494.809742807162
-ROUTE,-24.01928792313204,49.827352706410636,73.58389143904424,-116.36499415382366`));
+interface Window {
+    result: any;
+    fetch: (url: string) => any;
+}
 
-// var result = parse(`#SEED: 0.6591764106415212
-// SAT0,15.752300450590766,138.68135162364683,677.7937179822312
-// SAT1,-10.094046838689223,-165.16477962972232,445.6292671459687
-// SAT2,-13.792456953773936,24.652594881111924,699.7247401452709
-// SAT3,-29.386368291304294,-32.61201393914632,346.50752024274743
-// SAT4,-77.58660413274337,-24.51436513731906,356.7876751507189
-// SAT5,-57.945859959487755,-174.05559188893977,454.96556100965154
-// SAT6,55.81334836859526,155.42372760634942,450.018326216201
-// SAT7,41.18442985479217,172.54380983126612,580.9984670576443
-// SAT8,0.1818460920082572,109.52065065607445,472.5471728259654
-// SAT9,47.90335216697443,-156.2438642507256,420.1022864925314
-// SAT10,-15.985868113455012,109.34170239086717,485.75313411402766
-// SAT11,-13.95865096056778,34.94713076250508,314.86507261791735
-// SAT12,31.42393119952945,170.19228362158617,349.42033898532424
-// SAT13,-88.457757176745,-0.9419029905043601,693.0745212399682
-// SAT14,-54.564080794572696,62.11402511800165,652.3051799074756
-// SAT15,25.50798081445953,91.58631047933466,588.1137235095227
-// SAT16,-25.909006704530512,89.51154054006804,568.5813114812387
-// SAT17,72.10795014052488,-173.05663459973817,444.3634238833925
-// SAT18,36.645721264082695,-21.544161616075826,325.8089506416442
-// SAT19,85.14160037145811,-78.35411100360866,315.6457764702074
-// ROUTE,-74.53533741135584,-44.037783520205465,76.86985102455742,76.45598654881007`);
+// window.result = parse(`#SEED: 0.15050181397236884
+// SAT0,27.366718183277968,-98.8780108301933,315.48216869233056
+// SAT1,-45.87656992123351,174.70036036583411,624.231229228254
+// SAT2,38.476172673602036,-175.53921274031035,414.9954105226449
+// SAT3,-70.32564329652426,25.643034339950418,673.2623317910093
+// SAT4,-63.016904731666905,96.43855560058114,468.6637283053949
+// SAT5,49.824518992706174,134.0880963884111,612.8659135879406
+// SAT6,-61.916440909274286,-68.61415658543805,666.3057834872683
+// SAT7,-4.397508556316723,-37.11875780902159,669.7516590780235
+// SAT8,-61.94563603217459,63.02138227235477,633.0125284176954
+// SAT9,61.25966645988686,-107.51945355529342,360.5823366407088
+// SAT10,-26.442157265872638,114.09789986350972,410.65581980961326
+// SAT11,48.432802109428565,109.32468552495783,504.48406444813037
+// SAT12,59.998087218078666,155.49786973131057,600.7041906836546
+// SAT13,-40.258544068249655,130.5566416706402,619.8258434820461
+// SAT14,-53.42782551682608,162.75886267836603,683.2628594962157
+// SAT15,-20.656913317066056,-79.07525471532652,583.6645808336905
+// SAT16,-10.652012014526335,-120.72043914330499,628.6041112028761
+// SAT17,13.408178254422808,-101.02954826418674,507.95320836895155
+// SAT18,-49.396139631934226,68.19486116066574,494.9908868776713
+// SAT19,85.45465890170158,0.8728516688020704,678.6543760248421
+// ROUTE,-37.88624966373936,-165.72598804053638,66.28661538569315,73.4048850932341`);
 
-debugger;
-console.log(result);
+
+
+window.result = window.fetch('https://space-fast-track.herokuapp.com/generate')
+    .then(x => x.text())
+    .then(x => parse(x));

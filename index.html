@@ -1,0 +1,279 @@
+<html>
+    <head>
+        <script src="./libs/three.min.js"></script>
+        <script src="./libs/planets.js"></script>
+        <script src="./libs/atmospherematerial.js"></script>
+        <script src="./libs/orbit.js"></script>
+    </head>
+    <body style="margin: 0px; background-color: #000000; overflow: hidden;">
+        <!-- [TODO] - Computing spinner -->
+        <script src="./main.js"></script>
+        <script>
+            THREE.Cache.enabled = true;
+            
+            var renderer	= new THREE.WebGLRenderer({
+                antialias	: true
+            });
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            document.body.appendChild( renderer.domElement );
+            renderer.shadowMap.enabled	= true;
+            
+            var onRenderFcts= [];
+            var scene	= new THREE.Scene();
+            var camera	= new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100 );
+            camera.position.z = 4;
+            scene.rotateZ(0 * Math.PI/180)
+            scene.rotateX(0 * Math.PI/180);
+            scene.rotateY(0 * Math.PI/180);
+
+            var light	= new THREE.AmbientLight( 0x222222 );
+            scene.add( light );
+
+            var light	= new THREE.DirectionalLight( 0xffffff, 1 );
+            light.position.set(-50,25,50);
+            scene.add( light );
+            light.castShadow	= true;
+            light.shadow.camera.near	= 0.01;
+            light.shadow.camera.far	= 15;
+            light.shadow.camera.fov	= 45;
+
+            light.shadow.camera.left	= -1;
+            light.shadow.camera.right	=  1;
+            light.shadow.camera.top	=  1;
+            light.shadow.camera.bottom = -1;
+
+            light.shadow.bias	= 0.001;
+
+            light.shadow.mapSize.width	= 1024;
+            light.shadow.mapSize.height	= 1024;
+            
+            //////////////////////////////////////////////////////////////////////////////////
+            //		added starfield							//
+            //////////////////////////////////////////////////////////////////////////////////
+            
+            var starSphere	= THREEx.Planets.createStarfield();
+            scene.add(starSphere);
+            
+            //////////////////////////////////////////////////////////////////////////////////
+            //		add an object and make it move					//
+            //////////////////////////////////////////////////////////////////////////////////
+
+            var containerEarth	= new THREE.Object3D();
+            // containerEarth.rotateZ(0 * Math.PI/180);
+            // containerEarth.rotateX(120 * Math.PI/180);
+            // containerEarth.rotateY(-90 * Math.PI/180);
+            containerEarth.position.z	= 0;
+            containerEarth.position.y	= 0;
+            containerEarth.position.x	= 0;
+            scene.add(containerEarth);
+
+            var earthMesh	= THREEx.Planets.createEarth();
+            earthMesh.receiveShadow	= true;
+            earthMesh.castShadow	= true;
+            containerEarth.add(earthMesh);
+            // onRenderFcts.push(function(delta, now){
+            //     earthMesh.rotation.y += 1/32 * delta;		
+            // })
+
+            var geometry	= new THREE.SphereGeometry(1, 32, 32);
+            var material	= THREEx.createAtmosphereMaterial();
+            material.uniforms.glowColor.value.set(0x00b3ff);
+            material.uniforms.coeficient.value	= 0.8;
+            material.uniforms.power.value		= 4.0;
+            var mesh	= new THREE.Mesh(geometry, material );
+            mesh.scale.multiplyScalar(1.02);
+            containerEarth.add( mesh );
+
+            var geometry	= new THREE.SphereGeometry(1, 32, 32);
+            var material	= THREEx.createAtmosphereMaterial();
+            material.side	= THREE.BackSide;
+            material.uniforms.glowColor.value.set(0x00b3ff)
+            material.uniforms.coeficient.value	= 0.1;
+            material.uniforms.power.value		= 2.0;
+            var mesh	= new THREE.Mesh(geometry, material );
+            mesh.scale.multiplyScalar(1.15);
+            containerEarth.add( mesh );
+
+            var earthCloud	= THREEx.Planets.createEarthCloud();
+            earthCloud.receiveShadow	= true;
+            earthCloud.castShadow	= true;
+            containerEarth.add(earthCloud);
+            onRenderFcts.push(function(delta, now){
+                earthCloud.rotation.y += 1/16 * delta;		
+            });
+            
+            //Helpers
+                function roundRect(ctx, x, y, w, h, r) 
+                {
+                    ctx.beginPath();
+                    ctx.moveTo(x+r, y);
+                    ctx.lineTo(x+w-r, y);
+                    ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+                    ctx.lineTo(x+w, y+h-r);
+                    ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+                    ctx.lineTo(x+r, y+h);
+                    ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+                    ctx.lineTo(x, y+r);
+                    ctx.quadraticCurveTo(x, y, x+r, y);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();   
+                }
+                function makeTextSprite( message, parameters )
+                {
+                    if ( parameters === undefined ) parameters = {};
+                    
+                    var fontface = parameters.hasOwnProperty("fontface") ? 
+                        parameters["fontface"] : "Arial";
+                    
+                    var fontsize = parameters.hasOwnProperty("fontsize") ? 
+                        parameters["fontsize"] : 18;
+                    
+                    var borderThickness = parameters.hasOwnProperty("borderThickness") ? 
+                        parameters["borderThickness"] : 4;
+                    
+                    var borderColor = parameters.hasOwnProperty("borderColor") ?
+                        parameters["borderColor"] : { r:0, g:0, b:0, a:1.0 };
+                    
+                    var backgroundColor = parameters.hasOwnProperty("backgroundColor") ?
+                        parameters["backgroundColor"] : { r:255, g:255, b:255, a:1.0 };
+                        
+                    var canvas = document.createElement('canvas');
+                    var context = canvas.getContext('2d');
+                    context.font = "Bold " + fontsize + "px " + fontface;
+                    
+                    // get size data (height depends only on font size)
+                    var metrics = context.measureText( message );
+                    var textWidth = metrics.width;
+                    
+                    // background color
+                    context.fillStyle   = "rgba(" + backgroundColor.r + "," + backgroundColor.g + ","
+                                                + backgroundColor.b + "," + backgroundColor.a + ")";
+                    // border color
+                    context.strokeStyle = "rgba(" + borderColor.r + "," + borderColor.g + ","
+                                                + borderColor.b + "," + borderColor.a + ")";
+
+                    context.lineWidth = borderThickness;
+                    roundRect(context, borderThickness/2, borderThickness/2, textWidth + borderThickness, fontsize * 1.4 + borderThickness, 6);
+                    // 1.4 is extra height factor for text below baseline: g,j,p,q.
+                    
+                    // text color
+                    context.fillStyle = "rgba(0, 0, 0, 1.0)";
+
+                    context.fillText( message, borderThickness, fontsize + borderThickness);
+                    
+                    // canvas contents will be used for a texture
+                    var texture = new THREE.Texture(canvas) 
+                    texture.needsUpdate = true;
+
+                    var spriteMaterial = new THREE.SpriteMaterial( { map: texture } );
+                    var sprite = new THREE.Sprite( spriteMaterial );
+                    sprite.scale.set(100,50,1.0);
+                    return sprite;	
+                }
+            
+            var realScale = 1 / (6371);
+            
+            var startPoint = null,
+                endPoint = null,
+                satelitePoints = [],
+                sateliteLables = [],
+                pathLine = null;
+                
+            var renderSolution = function (result) {
+                scene.remove(startPoint);
+                scene.remove(endPoint);
+                scene.remove(pathLine);
+                sateliteLables.forEach(scene.remove, scene);
+                satelitePoints.forEach(scene.remove, scene);
+            
+                //Start and end
+                startPoint = new THREE.Mesh( new THREE.SphereGeometry( 1/50, 32, 32 ), new THREE.MeshBasicMaterial( {color: 0x00ff00} ) );
+                startPoint.position.x = result.start.position.value[0] * realScale;
+                startPoint.position.y = result.start.position.value[1] * realScale;
+                startPoint.position.z = result.start.position.value[2] * realScale;
+                scene.add( startPoint );
+                
+                endPoint = new THREE.Mesh( new THREE.SphereGeometry( 1/50, 32, 32 ), new THREE.MeshBasicMaterial( {color: 0xff0000} ) );
+                endPoint.position.x = result.end.position.value[0] * realScale;
+                endPoint.position.y = result.end.position.value[1] * realScale;
+                endPoint.position.z = result.end.position.value[2] * realScale;
+                scene.add( endPoint );
+                
+                var satelites = result.routeingPoints.slice(1, -1);
+                satelites.forEach(function (s) {
+                    var sateliteOrb = new THREE.Mesh( new THREE.SphereGeometry( 1/100, 32, 32 ), new THREE.MeshBasicMaterial( {color: 0x0000ff} ) );
+                    sateliteOrb.position.x = s.position.value[0] * realScale;
+                    sateliteOrb.position.y = s.position.value[1] * realScale;
+                    sateliteOrb.position.z = s.position.value[2] * realScale;
+                    scene.add( sateliteOrb );
+                    
+                    var textGeo = makeTextSprite("test", {
+                        fontsize: 24,
+                        borderColor: {r:0255, g:0, b:255, a:1.0},
+                        backgroundColor: {r:255, g:255, b:255, a:0.8}
+                    });
+                    textGeo.position.set(
+                        s.position.value[0] * realScale,
+                        s.position.value[1] * realScale + 0.1,
+                        s.position.value[2] * realScale
+                    );
+                    scene.add( textGeo );
+                    sateliteLables.push(textGeo);
+                });
+                
+                //Solution Path
+                var material = new THREE.LineBasicMaterial({
+                    color: 0xffffff,
+                    linewidth: 10,
+                    linecap: 'square'
+                });
+                var geometry = new THREE.Geometry();
+                result.answer.pathPos.forEach(function (p, i) {
+                    geometry.vertices.push(new THREE.Vector3(
+                        p.value[0] * realScale,
+                        p.value[1] * realScale,
+                        p.value[2] * realScale
+                    ));
+                });
+
+                pathLine = new THREE.Line(geometry, material);
+                scene.add(pathLine);
+            };
+            
+            window.result.then(renderSolution);
+
+            //////////////////////////////////////////////////////////////////////////////////
+            //		Camera Controls							//
+            //////////////////////////////////////////////////////////////////////////////////
+            
+            controls = new THREE.OrbitControls( camera );
+            controls.addEventListener( 'change', renderer.render );
+
+
+            //////////////////////////////////////////////////////////////////////////////////
+            //		render the scene						//
+            //////////////////////////////////////////////////////////////////////////////////
+            onRenderFcts.push(function(){
+                renderer.render( scene, camera );		
+            })
+            
+            //////////////////////////////////////////////////////////////////////////////////
+            //		loop runner							//
+            //////////////////////////////////////////////////////////////////////////////////
+            var lastTimeMsec= null
+            requestAnimationFrame(function animate(nowMsec){
+                // keep looping
+                requestAnimationFrame( animate );
+                // measure time
+                lastTimeMsec	= lastTimeMsec || nowMsec-1000/60
+                var deltaMsec	= Math.min(200, nowMsec - lastTimeMsec)
+                lastTimeMsec	= nowMsec
+                // call each update function
+                onRenderFcts.forEach(function(onRenderFct){
+                    onRenderFct(deltaMsec/1000, nowMsec/1000)
+                })
+            })
+        </script>
+    </body>
+</html>
