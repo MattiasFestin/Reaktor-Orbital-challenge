@@ -239,7 +239,7 @@ class Router {
                         .filter(q => {
                             return q !== s && 
                                 ['start', 'end'].indexOf(q.name) === -1 &&
-                                this.earth.intersect(new Line(s.position, q.position)).length === 0; //Is not self and does not intersect earth 
+                                this.earth.intersect(new Line(s.position, q.position.sub(s.position))).length === 0; //Is not self and does not intersect earth 
                         })
                         .map(x => new RountingPointPairs(s, x))
                         //Remove duplicates
@@ -265,13 +265,13 @@ class Router {
                         .sort((a, b) => a.distance - b.distance)
                     );
 
-                    // //We want symetric relations
-                    // s.availiableRoutingPoints.forEach(q => {
-                    //     q.target.availiableRoutingPoints = q.target.availiableRoutingPoints || [];
-                    //     if (q.target.availiableRoutingPoints.every(r => r.target !== q.source)) {
-                    //         q.target.availiableRoutingPoints.push(new RountingPointPairs(q.target, q.source));
-                    //     }
-                    // });   
+                    //We want symetric relations
+                    s.availiableRoutingPoints.forEach(q => {
+                        q.target.availiableRoutingPoints = q.target.availiableRoutingPoints || [];
+                        if (q.target.availiableRoutingPoints.every(r => r.target !== q.source)) {
+                            q.target.availiableRoutingPoints.push(new RountingPointPairs(q.target, q.source));
+                        }
+                    });   
                 }
                 
                 return s; 
@@ -326,76 +326,6 @@ class Router {
                 }
             }
         }
-        
-        // var flattenGraph = function (visitedNodes: RouteingPoint[] = []) {
-        //     return function (currentNode: RouteingPoint) {
-        //         console.log('Flatten:', currentNode);
-        //         visitedNodes.push(currentNode);
-                
-        //         var children = currentNode.availiableRoutingPoints
-        //                 .filter(x => visitedNodes.indexOf(currentNode) === -1)
-        //                 .map(x => flattenGraph(visitedNodes)(x.target));
-                
-        //         return [currentNode].concat(
-        //             children
-        //         );
-        //     };
-        // };
-        
-        // console.log(flattenGraph([])(start));
-      
-        // var decent = function decentFn (currentNode: RouteingPoint, visitedNodes: RouteingPoint[], maxDepth: number) {
-        //     // console.log(maxDepth, currentNode)
-        //     if (maxDepth === 0) {
-        //         return visitedNodes;
-        //     }
-        //     return currentNode.availiableRoutingPoints
-        //         .filter(x => visitedNodes.indexOf(x.target) === -1)
-        //         .map(x => decent(x.target, visitedNodes.concat([currentNode]), maxDepth-1))
-        //         .reduce((x, y) => x.concat(y), []);
-        // };
-        
-        // console.log(decent(start, [], 2));
-        // console.log(decent(end, [], 2));
-        
-        // var distanceArr: number[] = [];
-        // //Floyd–Warshall_algorithm
-        
-        // //Preset all distances to infinity
-        // var i = len;
-        // while (i--) {
-        //     distanceArr[i] = Infinity;
-        // }
-        
-        
-        // //Distance from start to start is zero
-
-        // i = len;
-        // while (i--) {
-        //     var u = this.routes[i];
-        //     distanceArr[i] = 0;  
-        //     // if (u == end) {
-        //     //     break;
-        //     // }
-            
-        //     console.groupCollapsed(u.name);
-            
-        //     for (var neighbor of u.availiableRoutingPoints) {
-        //         var neighborIndex = this.routes.indexOf(neighbor.target);
-        //         var alt = distanceArr[i] + neighbor.distance;
-                
-        //         console.log(neighbor.target.name, alt);
-                
-        //         if (alt < distanceArr[neighborIndex]) {
-        //             distance += alt;
-        //             distanceArr[neighborIndex] = alt;
-        //             path.push(u.name);
-        //             pathPos.push(u.position)
-        //         }
-        //     }
-            
-        //     console.groupEnd();
-        // }
         
         var answer = {
             path: path,
