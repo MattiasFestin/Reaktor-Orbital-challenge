@@ -231,40 +231,11 @@ class Router {
     constructor (routes: RouteingPoint[]) {
         this.earth = new Sphere(new Vec3([0, 0, 0]), 6371);
         
-        this.routes = routes;
-        // var len = this.routes.length;
-        
-        // var i = len;
-        // while (i--) {
-        //     //The row element
-        //     var r = this.routes[i];
-        //     r.availiableRoutingPoints = r.availiableRoutingPoints || [];
-            
-        //     var j = i;
-        //     while (j--) {
-        //         //The column element
-        //         var c = this.routes[j];
-        //         c.availiableRoutingPoints = c.availiableRoutingPoints || [];
-                
-        //         //The distance is symetrical when routing.
-        //         var distance = (r !== c && this.earth.intersect(new Line(r.position, c.position)).length === 0 ?
-        //             Infinity :
-        //             r.position.distance(c.position)
-        //         );
-                
-        //         //Check if inte
-        //         if (distance < Infinity) {
-        //             r.availiableRoutingPoints.push(new RountingPointPairs(r, c));
-        //             c.availiableRoutingPoints.push(new RountingPointPairs(c, r));
-        //         } 
-        //     }
-        // }       
         this.routes = routes
             .map(s => {
                 s.availiableRoutingPoints = s.availiableRoutingPoints || [];
                 if (['start', 'end'].indexOf(s.name) === -1) {
-                    s.availiableRoutingPoints = s.availiableRoutingPoints.concat(
-                        routes
+                    s.availiableRoutingPoints = routes
                         .filter(q => {
                             return q !== s && 
                                 ['start', 'end'].indexOf(q.name) === -1 &&
@@ -274,8 +245,7 @@ class Router {
                         //Remove duplicates
                         .filter(x => s.availiableRoutingPoints.indexOf(x) === -1)
                         //Order by distance
-                        .sort((a, b) => a.distance - b.distance)
-                    );
+                        .sort((a, b) => a.distance - b.distance);
                 } else {
                     //Start and end points will intersect below (behind?) the point
                     // We must check the surface normal the direction if it is infront of the point
@@ -285,7 +255,6 @@ class Router {
                         routes
                         .filter(q => {
                             var dot = q.position.sub(s.position).norm().dot(surfaceNormal);
-                            debugger;
                             return q !== s && 
                                 dot > 0 
                         })
@@ -296,40 +265,14 @@ class Router {
                         .sort((a, b) => a.distance - b.distance)
                     );
 
-                    //We want symetric relations
-                    s.availiableRoutingPoints.forEach(q => {
-                        q.target.availiableRoutingPoints = q.target.availiableRoutingPoints || [];
-                        if (q.target.availiableRoutingPoints.every(r => r.target !== q.source)) {
-                            q.target.availiableRoutingPoints.push(new RountingPointPairs(q.target, q.source));
-                        }
-                    });   
+                    // //We want symetric relations
+                    // s.availiableRoutingPoints.forEach(q => {
+                    //     q.target.availiableRoutingPoints = q.target.availiableRoutingPoints || [];
+                    //     if (q.target.availiableRoutingPoints.every(r => r.target !== q.source)) {
+                    //         q.target.availiableRoutingPoints.push(new RountingPointPairs(q.target, q.source));
+                    //     }
+                    // });   
                 }
-                //  else {
-                //     var surfaceNormal = this.earth.normal(s.position);
-                    
-                //     s.availiableRoutingPoints = s.availiableRoutingPoints.concat(
-                //         routes
-                //         .filter(q => {
-                //             var dot = s.position.sub(q.position).norm().dot(surfaceNormal);
-                //             debugger;
-                //             return q !== s && 
-                //                 dot > 0 
-                //         })
-                //         .map(x => new RountingPointPairs(s, x))
-                //         //Remove duplicates
-                //         .filter(x => s.availiableRoutingPoints.indexOf(x) === -1)
-                //         //Order by distance
-                //         .sort((a, b) => a.distance - b.distance)
-                //     );
-
-                //     //We want symetric relations
-                //     s.availiableRoutingPoints.forEach(q => {
-                //         q.target.availiableRoutingPoints = q.target.availiableRoutingPoints || [];
-                //         if (q.target.availiableRoutingPoints.every(r => r.target !== q.source)) {
-                //             q.target.availiableRoutingPoints.push(new RountingPointPairs(q.target, q.source));
-                //         }
-                //     });
-                // }
                 
                 return s; 
             });
@@ -341,40 +284,118 @@ class Router {
         var path: string[] = [];
         var pathPos: Vec3[] = [];
         var distance = 0;
-        var distanceArr: number[] = [];
-        //Floyd–Warshall_algorithm
         
-        //Preset all distances to infinity
-        var i = len;
-        while (i--) {
-            distanceArr[i] = Infinity;
-        } 
-
-        i = len;
-        while (i--) {
-            var u = this.routes[i]; 
-            // if (u == end) {
-            //     break;
-            // }
-            
-            console.group(u.name);
-            
-            for (var neighbor of u.availiableRoutingPoints) {
-                var neighborIndex = this.routes.indexOf(neighbor.target);
-                var alt = distanceArr[i] + neighbor.distance;
+        var flattenChildren = function (start: RouteingPoint) {
+            var childrenJumps = [[start]];
+            var jumps = 1;
+            var visitedNodes: RouteingPoint[] = [];
+            var toSearch: RouteingPoint[] = [start];
+            while (toSearch.length > 0) {
+                var currentNode = toSearch.shift();
+                var children = currentNode.availiableRoutingPoints
+                    .filter(x => visitedNodes.indexOf(currentNode) === -1)
+                    .map(x => x.target);
                 
-                console.log(neighbor);
-                
-                if (alt < distanceArr[neighborIndex]) {
-                    distance += alt;
-                    distanceArr[neighborIndex] = alt;
-                    path.push(u.name);
-                    pathPos.push(u.position)
+                if (children.length === 0) {
+                    continue;
                 }
+                
+                childrenJumps[jumps] = children;
+                
+                visitedNodes.push(currentNode);
+                
+                toSearch = toSearch.concat(children);
+                
+                jumps += 1;
             }
             
-            console.groupEnd();
+            return childrenJumps;
+        };
+        
+        var startDir = flattenChildren(start);
+        var endDir = flattenChildren(end);
+        
+        outer_loop:
+        for (var i = 0; i < startDir.length; i++) {
+            for (var j = 0; j < endDir.length; j++) {
+                if (startDir[i].some(x => endDir[j].indexOf(x) > -1)) {
+                    //Match
+                    pathPos = endDir[j].map(x => x.position).concat(end.position);
+                    path = endDir[j].map(x => x.name).concat(end.name);
+                    break outer_loop;
+                }
+            }
         }
+        
+        // var flattenGraph = function (visitedNodes: RouteingPoint[] = []) {
+        //     return function (currentNode: RouteingPoint) {
+        //         console.log('Flatten:', currentNode);
+        //         visitedNodes.push(currentNode);
+                
+        //         var children = currentNode.availiableRoutingPoints
+        //                 .filter(x => visitedNodes.indexOf(currentNode) === -1)
+        //                 .map(x => flattenGraph(visitedNodes)(x.target));
+                
+        //         return [currentNode].concat(
+        //             children
+        //         );
+        //     };
+        // };
+        
+        // console.log(flattenGraph([])(start));
+      
+        // var decent = function decentFn (currentNode: RouteingPoint, visitedNodes: RouteingPoint[], maxDepth: number) {
+        //     // console.log(maxDepth, currentNode)
+        //     if (maxDepth === 0) {
+        //         return visitedNodes;
+        //     }
+        //     return currentNode.availiableRoutingPoints
+        //         .filter(x => visitedNodes.indexOf(x.target) === -1)
+        //         .map(x => decent(x.target, visitedNodes.concat([currentNode]), maxDepth-1))
+        //         .reduce((x, y) => x.concat(y), []);
+        // };
+        
+        // console.log(decent(start, [], 2));
+        // console.log(decent(end, [], 2));
+        
+        // var distanceArr: number[] = [];
+        // //Floyd–Warshall_algorithm
+        
+        // //Preset all distances to infinity
+        // var i = len;
+        // while (i--) {
+        //     distanceArr[i] = Infinity;
+        // }
+        
+        
+        // //Distance from start to start is zero
+
+        // i = len;
+        // while (i--) {
+        //     var u = this.routes[i];
+        //     distanceArr[i] = 0;  
+        //     // if (u == end) {
+        //     //     break;
+        //     // }
+            
+        //     console.groupCollapsed(u.name);
+            
+        //     for (var neighbor of u.availiableRoutingPoints) {
+        //         var neighborIndex = this.routes.indexOf(neighbor.target);
+        //         var alt = distanceArr[i] + neighbor.distance;
+                
+        //         console.log(neighbor.target.name, alt);
+                
+        //         if (alt < distanceArr[neighborIndex]) {
+        //             distance += alt;
+        //             distanceArr[neighborIndex] = alt;
+        //             path.push(u.name);
+        //             pathPos.push(u.position)
+        //         }
+        //     }
+            
+        //     console.groupEnd();
+        // }
         
         var answer = {
             path: path,
@@ -511,11 +532,23 @@ var parse = function parseFn (text: string) {
         }),
         start: {
             name: start.name,
-            position: start.position
+            position: start.position,
+            availiableRoutingPoints: start.availiableRoutingPoints.map(y => {
+                return {
+                    name: y.target.name,
+                    position: y.target.position
+                };
+            })
         },
         end: {
             name: end.name,
-            position: end.position
+            position: end.position,
+            availiableRoutingPoints: end.availiableRoutingPoints.map(y => {
+                return {
+                    name: y.target.name,
+                    position: y.target.position
+                };
+            })
         },
         answer
     };

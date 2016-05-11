@@ -194,11 +194,53 @@
                 startPoint.position.z = result.start.position.value[2] * realScale;
                 scene.add( startPoint );
                 
+                result.start.availiableRoutingPoints.forEach(function (rp) {
+                    var material = new THREE.LineBasicMaterial({
+                        color: 0xff00ff,
+                        linewidth: 4,
+                        linecap: 'square'
+                    });
+                    var geometry = new THREE.Geometry();
+                    geometry.vertices.push(new THREE.Vector3(
+                        result.start.position.value[0] * realScale,
+                        result.start.position.value[1] * realScale,
+                        result.start.position.value[2] * realScale
+                    ));
+                    geometry.vertices.push(new THREE.Vector3(
+                        rp.position.value[0] * realScale,
+                        rp.position.value[1] * realScale,
+                        rp.position.value[2] * realScale
+                    ));
+                    pathLine = new THREE.Line(geometry, material);
+                    scene.add(pathLine);
+                });
+                
                 endPoint = new THREE.Mesh( new THREE.SphereGeometry( 1/50, 32, 32 ), new THREE.MeshBasicMaterial( {color: 0xff0000} ) );
                 endPoint.position.x = result.end.position.value[0] * realScale;
                 endPoint.position.y = result.end.position.value[1] * realScale;
                 endPoint.position.z = result.end.position.value[2] * realScale;
                 scene.add( endPoint );
+                
+                result.end.availiableRoutingPoints.forEach(function (rp) {
+                    var material = new THREE.LineBasicMaterial({
+                        color: 0xff00ff,
+                        linewidth: 4,
+                        linecap: 'square'
+                    });
+                    var geometry = new THREE.Geometry();
+                    geometry.vertices.push(new THREE.Vector3(
+                        result.end.position.value[0] * realScale,
+                        result.end.position.value[1] * realScale,
+                        result.end.position.value[2] * realScale
+                    ));
+                    geometry.vertices.push(new THREE.Vector3(
+                        rp.position.value[0] * realScale,
+                        rp.position.value[1] * realScale,
+                        rp.position.value[2] * realScale
+                    ));
+                    pathLine = new THREE.Line(geometry, material);
+                    scene.add(pathLine);
+                });
                 
                 var satelites = result.routeingPoints.slice(1, -1);
                 satelites.forEach(function (s) {
@@ -208,24 +250,48 @@
                     sateliteOrb.position.z = s.position.value[2] * realScale;
                     scene.add( sateliteOrb );
                     
-                    var textGeo = makeTextSprite("test", {
-                        fontsize: 24,
-                        borderColor: {r:0255, g:0, b:255, a:1.0},
-                        backgroundColor: {r:255, g:255, b:255, a:0.8}
+                    
+                    
+                    s.availiableRoutingPoints.forEach(function (rp) {
+                        var material = new THREE.LineBasicMaterial({
+                            color: 0xff00ff,
+                            linewidth: 4,
+                            linecap: 'square'
+                        });
+                        var geometry = new THREE.Geometry();
+                        geometry.vertices.push(new THREE.Vector3(
+                            s.position.value[0] * realScale,
+                            s.position.value[1] * realScale,
+                            s.position.value[2] * realScale
+                        ));
+                        geometry.vertices.push(new THREE.Vector3(
+                            rp.position.value[0] * realScale,
+                            rp.position.value[1] * realScale,
+                            rp.position.value[2] * realScale
+                        ));
+                        pathLine = new THREE.Line(geometry, material);
+                        scene.add(pathLine);
                     });
-                    textGeo.position.set(
-                        s.position.value[0] * realScale,
-                        s.position.value[1] * realScale + 0.1,
-                        s.position.value[2] * realScale
-                    );
-                    scene.add( textGeo );
-                    sateliteLables.push(textGeo);
+
+                    
+                    // var textGeo = makeTextSprite("test", {
+                    //     fontsize: 24,
+                    //     borderColor: {r:0255, g:0, b:255, a:1.0},
+                    //     backgroundColor: {r:255, g:255, b:255, a:0.8}
+                    // });
+                    // textGeo.position.set(
+                    //     s.position.value[0] * realScale,
+                    //     s.position.value[1] * realScale + 0.1,
+                    //     s.position.value[2] * realScale
+                    // );
+                    // scene.add( textGeo );
+                    // sateliteLables.push(textGeo);
                 });
                 
                 //Solution Path
                 var material = new THREE.LineBasicMaterial({
                     color: 0xffffff,
-                    linewidth: 10,
+                    linewidth: 20,
                     linecap: 'square'
                 });
                 var geometry = new THREE.Geometry();
