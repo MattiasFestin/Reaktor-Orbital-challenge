@@ -69,7 +69,8 @@ export class Router {
         var pathPos: Vec3[] = [];
         var distance = 0;
         
-         var recursiveDecent = function (node: RouteingPoint, finish: RouteingPoint, answer: IAnswer, visited: RountingPointPairs[]  = []): IAnswer {
+        //[TODO] - Change to a more efficent algoritm (like Dijkstra or Bellman–Ford).
+        var recursiveDecent = function (node: RouteingPoint, finish: RouteingPoint, answer: IAnswer, visited: RountingPointPairs[]  = []): IAnswer {
             
             var availiableRoutingPoints = node.availiableRoutingPoints.filter(x => visited.indexOf(x) === -1);
 
