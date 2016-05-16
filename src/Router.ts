@@ -1,6 +1,7 @@
 import {Vec3, PolarCoordinate} from './Math';
 import {RouteingPoint, RountingPointPairs} from './RouteingPoint';
-import {Sphere, Line} from './3dStuff';
+import {Sphere} from './Sphere';
+import {Line} from './Line';
 
 interface IAnswer {
     distance: number,
