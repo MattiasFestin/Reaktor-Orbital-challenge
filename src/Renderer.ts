@@ -110,7 +110,7 @@ export class Renderer {
         this.earthSunObj.add(directionalLight);
         
         this.onRender.push(function(delta, now){
-            this.earthSunObj.rotation.y += 1/32 * delta;		
+            this.earthSunObj.rotation.y -= 1/32 * delta;		
         });
         
         return directionalLight;
@@ -198,11 +198,11 @@ export class Renderer {
         earthCloud.castShadow	= true;
         containerEarth.add(earthCloud);
         this.onRender.push(function(delta, now){
-            earthCloud.rotation.y += 1/64 * delta;		
+            earthCloud.rotation.y -= 1/64 * delta;		
         });
         
         this.onRender.push(function(delta, now){
-            containerEarth.rotation.y -= 2/32 * delta;		
+            containerEarth.rotation.y += 2/32 * delta;		
         });
         
         return containerEarth;
