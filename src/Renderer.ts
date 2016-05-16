@@ -423,20 +423,6 @@ export class Renderer {
                 this.pathLine = new THREE.Line(geometry, material);
                 this.earth.add(this.pathLine);
             }, this);
-
-            
-            // var textGeo = makeTextSprite("test", {
-            //     fontsize: 24,
-            //     borderColor: {r: 255, g:0, b:255, a:1.0},
-            //     backgroundColor: {r:255, g:255, b:255, a:0.8}
-            // });
-            // textGeo.position.set(
-            //     s.position.value[0] * realScale,
-            //     s.position.value[1] * realScale + 0.1,
-            //     s.position.value[2] * realScale
-            // );
-            // this.scene.add( textGeo );
-            // this.sateliteLables.push(textGeo);
         }, this);
         
         //Solution Path
