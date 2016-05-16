@@ -2,7 +2,7 @@ About
 ===
 My solution to [Reaktor](https://reaktor.com/orbital-challenge/) [#orbitalchallange](https://twitter.com/MattiasFestin/status/730521804427689984).
 
-![Animated solution in webgl](http://g.recordit.co/xZlZwhHloK.gif)
+![Animated solution in webgl](https://github.com/MattiasFestin/Reaktor-Orbital-challenge/blob/master/images/animation.gif)
 
 Build
 ===
