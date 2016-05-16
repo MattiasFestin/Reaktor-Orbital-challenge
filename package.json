@@ -1,0 +1,23 @@
+{
+  "name": "reactororbital",
+  "version": "1.0.0",
+  "description": "A solution finder for the reactor orbital challange",
+  "main": "index.html",
+  "scripts": {
+    "build": "gulp build",
+    "start": "lactate -c -d --watch-files",
+    "dev": "lactate -c -d --watch-files"
+  },
+  "author": "Mattias Festin",
+  "license": "ISC",
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-browserify": "^0.5.1",
+    "gulp-clean": "^0.3.2",
+    "gulp-rename": "^1.2.2",
+    "gulp-typescript": "^2.13.4",
+    "gulp-uglify": "^1.5.3",
+    "run-sequence": "^1.1.5",
+    "lactate": "^0.13.12"
+  }
+}
